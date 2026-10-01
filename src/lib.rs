@@ -26,6 +26,7 @@ async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let expected = env
         .secret("API_KEY")
         .map(|v| v.to_string())
+        .or_else(|_| env.var("API_KEY").map(|v| v.to_string()))
         .unwrap_or_default();
     let provided = req
         .headers()
