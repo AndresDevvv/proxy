@@ -103,7 +103,11 @@ async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
         for (k, v) in req.headers().entries() {
             let lk = k.to_lowercase();
-            if lk == "host" || lk == "cf-connecting-ip" || lk.starts_with("cf-") {
+            if lk == "host"
+                || lk == "x-api-key"
+                || lk == "authorization"
+                || lk.starts_with("cf-")
+            {
                 continue;
             }
             headers.set(&k, &v).ok();
