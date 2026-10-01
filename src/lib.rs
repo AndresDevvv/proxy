@@ -18,9 +18,30 @@ struct ProxyRequest {
 }
 
 #[event(fetch)]
-async fn fetch(mut req: Request, _env: Env, _ctx: Context) -> Result<Response> {
+async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
     if req.method() == Method::Options {
         return cors(Response::empty()?);
+    }
+
+    let expected = env
+        .secret("API_KEY")
+        .map(|v| v.to_string())
+        .unwrap_or_default();
+    let provided = req
+        .headers()
+        .get("X-API-Key")
+        .ok()
+        .flatten()
+        .or_else(|| {
+            req.headers()
+                .get("Authorization")
+                .ok()
+                .flatten()
+                .map(|a| a.trim_start_matches("Bearer ").to_string())
+        })
+        .unwrap_or_default();
+    if expected.is_empty() || !constant_eq(provided.as_bytes(), expected.as_bytes()) {
+        return cors(json_err("unauthorized", 401)?);
     }
 
     let target;
@@ -130,6 +151,17 @@ async fn fetch(mut req: Request, _env: Env, _ctx: Context) -> Result<Response> {
         .with_status(status)
         .with_headers(out_headers);
     Ok(resp)
+}
+
+fn constant_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for i in 0..a.len() {
+        diff |= a[i] ^ b[i];
+    }
+    diff == 0
 }
 
 fn cors(resp: Response) -> Result<Response> {
